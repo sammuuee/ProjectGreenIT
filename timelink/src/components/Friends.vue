@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   props: ['user'],
   data() {
@@ -30,7 +32,7 @@ export default {
       usernameToAdd: '',
       friends: [],
       receivedRequests: [],
-      serverUrl: 'http://10.3.203.73:3000'
+      serverUrl: import.meta.env.VITE_API_URL
     };
   },
   mounted() {
@@ -39,16 +41,13 @@ export default {
   },
   methods: {
     async getUserIdByUsername(username) {
-      const res = await fetch(`${this.serverUrl}/api/users/by-username/${username}`);
-      const data = await res.json();
-      if (res.ok) return data.id;
-      else throw new Error(data.message || 'Utilisateur introuvable');
+      const res = await axios.get(`${this.serverUrl}/api/users/by-username/${username}`);
+      return res.data.id;
     },
     async getUserById(userId) {
       try {
-        const res = await fetch(`${this.serverUrl}/api/users/by-id/${userId}`);
-        const data = await res.json();
-        return res.ok ? data.username : null;
+        const res = await axios.get(`${this.serverUrl}/api/users/by-id/${userId}`);
+        return res.data.username;
       } catch(e) {
         console.error(`❌ erreur fetch userId: ${userId}`, e);
         return null;
@@ -57,13 +56,9 @@ export default {
     async addFriend() {
       try {
         const receiverId = await this.getUserIdByUsername(this.usernameToAdd);
-        await fetch(`${this.serverUrl}/api/friends/request`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            requester_id: this.user.id,
-            receiver_id: receiverId
-          })
+        await axios.post(`${this.serverUrl}/api/friends/request`, {
+          requester_id: this.user.id,
+          receiver_id: receiverId
         });
         alert("Demande envoyée !");
         this.usernameToAdd = '';
@@ -72,21 +67,17 @@ export default {
       }
     },
     async respond(requesterId, status) {
-      await fetch(`${this.serverUrl}/api/friends/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requester_id: requesterId,
-          receiver_id: this.user.id,
-          status
-        })
+      await axios.post(`${this.serverUrl}/api/friends/respond`, {
+        requester_id: requesterId,
+        receiver_id: this.user.id,
+        status
       });
       this.fetchRequests();
       this.fetchFriends();
     },
     async fetchFriends() {
-      const res = await fetch(`${this.serverUrl}/api/friends/list/${this.user.id}`);
-      const rawFriends = await res.json();
+      const res = await axios.get(`${this.serverUrl}/api/friends/list/${this.user.id}`);
+      const rawFriends = res.data;
 
       const mapped = await Promise.all(
         rawFriends.map(async f => {
@@ -99,8 +90,8 @@ export default {
       this.friends = mapped;
     },
     async fetchRequests() {
-      const res = await fetch(`${this.serverUrl}/api/friends/pending/${this.user.id}`);
-      const requests = await res.json();
+      const res = await axios.get(`${this.serverUrl}/api/friends/pending/${this.user.id}`);
+      const requests = res.data;
 
       const withNames = await Promise.all(
         requests.map(async r => {

@@ -35,6 +35,7 @@
 </template>
 
 <script>
+import axios from 'axios';
 export default {
   props: ['user'],
   data() {
@@ -59,13 +60,13 @@ export default {
   },
   methods: {
     async fetchFriends() {
-      const res = await fetch(`${this.serverUrl}/api/friends/list/${this.user.id}`);
+      const res = await axios.get(`${this.serverUrl}/api/friends/list/${this.user.id}`);
       const rawFriends = await res.json();
 
       const mapped = await Promise.all(
         rawFriends.map(async f => {
           const otherId = f.requester_id === this.user.id ? f.receiver_id : f.requester_id;
-          const res = await fetch(`${this.serverUrl}/api/users/by-id/${otherId}`);
+          const res = await axios.get(`${this.serverUrl}/api/users/by-id/${otherId}`);
           const data = await res.json();
           return { id: otherId, username: data.username };
         })
@@ -78,7 +79,7 @@ export default {
       await this.loadConversation();
     },
     async fetchReceiverIdFromUsername() {
-      const res = await fetch(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
+      const res = await axios.get(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
       const data = await res.json();
       if (res.ok) {
         this.receiverId = data.id;
@@ -92,7 +93,7 @@ export default {
       const ok = await this.fetchReceiverIdFromUsername();
       if (!ok) return;
 
-      const res = await fetch(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
+      const res = await axios.get(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
       const data = await res.json();
       this.messages = data;
     },
@@ -101,7 +102,7 @@ export default {
       if (!ok || !this.newMessage.trim()) return;
 
       // Bloque si pas amis
-      const res = await fetch(`${this.serverUrl}/api/friends/status/${this.user.id}/${this.receiverId}`);
+      const res = await axios.get(`${this.serverUrl}/api/friends/status/${this.user.id}/${this.receiverId}`);
       const data = await res.json();
 
       if (data.status !== 'accepted') {
@@ -109,7 +110,7 @@ export default {
         return;
       }
 
-      await fetch(`${this.serverUrl}/api/messages/send`, {
+      await axios.get(`${this.serverUrl}/api/messages/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -124,7 +125,7 @@ export default {
     },
     async duelWith(friendId) {
       // Empêcher de faire 2 duels par jour
-      const check = await fetch(`${this.serverUrl}/api/duels/today/${this.user.id}/${friendId}`);
+      const check = await axios.get(`${this.serverUrl}/api/duels/today/${this.user.id}/${friendId}`);
       const { alreadyPlayed } = await check.json();
 
       if (alreadyPlayed) {
@@ -132,7 +133,7 @@ export default {
         return;
       }
 
-      const duel = await fetch(`${this.serverUrl}/api/duels/start`, {
+      const duel = await axios.get(`${this.serverUrl}/api/duels/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
