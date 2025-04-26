@@ -24,10 +24,12 @@ export default {
   methods: {
     async register() {
       try {
+        console.log("URL API utilisée :", this.serverUrl);
         const response = await axios.post(`${this.serverUrl}/api/users/register`, {
           username: this.username,
           email: this.email,
           password: this.password
+          
         });
 
         alert('Inscription réussie ! Connectez-vous.');
