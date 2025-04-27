@@ -1,54 +1,52 @@
 const express = require('express');
 const router = express.Router();
 
-// Stockage en mémoire des duels
-const duels = {}; // { "1-2": { choices: { user1Id: "left", user2Id: "right" } } }
+const duels = {}; // { key: { tireurChoice, gardienChoice, result, views } }
 
-function getDuelKey(player1, player2) {
-  return [player1, player2].sort((a, b) => a - b).join('-');
+function getDuelKey(id1, id2) {
+  return [id1, id2].sort((a, b) => a - b).join('-');
 }
 
+// Commencer un duel
 router.post('/start', (req, res) => {
   const { player1_id, player2_id } = req.body;
   const key = getDuelKey(player1_id, player2_id);
-  duels[key] = { choices: {} };
-  res.send({ message: "Duel démarré !" });
+  duels[key] = { tireurChoice: null, gardienChoice: null, result: null, views: new Set() };
+  res.send({ message: 'Duel commencé !' });
 });
 
+// Envoyer un choix ou checker le résultat
 router.post('/choose', (req, res) => {
-  const { userId, friendId, choice } = req.body;
-  const key = getDuelKey(userId, friendId);
+  const { userId, role, choice } = req.body;
 
-  if (!duels[key]) {
-    duels[key] = { choices: {} };
+  const duelKey = Object.keys(duels).find(key => key.includes(userId.toString()));
+  if (!duelKey) return res.status(400).send({ message: "Duel non trouvé." });
+
+  const duel = duels[duelKey];
+
+  if (role === 'tireur' && choice) {
+    duel.tireurChoice = choice;
+  } else if (role === 'gardien' && choice) {
+    duel.gardienChoice = choice;
   }
 
-  duels[key].choices[userId] = choice;
-
-  const players = Object.keys(duels[key].choices);
-
-  if (players.length === 2) {
-    const [id1, id2] = players;
-    const choice1 = duels[key].choices[id1];
-    const choice2 = duels[key].choices[id2];
-
-    // Compare les choix
-    let winner;
-    if (choice1 !== choice2) {
-      winner = id1; // Le tireur a marqué
-    } else {
-      winner = id2; // Le gardien a arrêté
+  // Si déjà un résultat, juste le renvoyer
+  if (duel.result) {
+    duel.views.add(userId);
+    if (duel.views.size >= 2) {
+      delete duels[duelKey]; // Supprimer le duel après que les 2 joueurs ont vu
     }
+    return res.send({ result: duel.result });
+  }
 
-    // Supprimer après résultat
-    delete duels[key];
+  if (duel.tireurChoice && duel.gardienChoice) {
+    const success = duel.tireurChoice !== duel.gardienChoice;
+    duel.result = success ? "🎯 Tu as marqué !" : "🧤 Ton tir a été arrêté !";
 
-    return res.send({
-      finished: true,
-      winnerId: winner
-    });
+    duel.views.add(userId);
+    return res.send({ result: duel.result });
   } else {
-    return res.send({ finished: false });
+    return res.send({ waiting: true });
   }
 });
 
