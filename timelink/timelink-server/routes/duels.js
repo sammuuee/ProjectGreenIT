@@ -1,67 +1,45 @@
-// server/routes/duels.js
+// === backend/penalty.js ===
+
 const express = require('express');
-const db = require('../database/db');
 const router = express.Router();
 
-// Lancer un duel
-router.post('/start', (req, res) => {
-  const { player1_id, player2_id } = req.body;
+let duelData = {
+  tireur: null, // { userId, choice }
+  gardien: null // { userId, choice }
+};
 
-  // Choisir un gagnant aléatoire
-  const winner_id = Math.random() < 0.5 ? player1_id : player2_id;
+router.post('/choose', (req, res) => {
+  const { userId, role, choice } = req.body;
 
-  db.query(
-    'INSERT INTO duels (player1_id, player2_id, winner_id, played_at) VALUES (?, ?, ?, NOW())',
-    [player1_id, player2_id, winner_id],
-    (err, result) => {
-      if (err) return res.status(500).send(err);
-      res.send({ message: 'Duel joué !', winner_id });
-    }
-  );
-});
-router.post('/penalty', (req, res) => {
-  const { shooter_id, goalie_id, shot_direction } = req.body;
-
-  // Simuler la parade au hasard
-  const goalie_guess = ['left', 'center', 'right'][Math.floor(Math.random() * 3)];
-
-  if (shot_direction === goalie_guess) {
-    res.send({ result: 'saved' }); // Arrêté
-  } else {
-    res.send({ result: 'goal' }); // BUT
+  if (role === 'tireur') {
+    duelData.tireur = { userId, choice };
+  } else if (role === 'gardien') {
+    duelData.gardien = { userId, choice };
   }
-});
 
-// Historique des duels entre deux joueurs
-router.get('/history/:user1/:user2', (req, res) => {
-  const { user1, user2 } = req.params;
-
-  db.query(
-    `SELECT * FROM duels WHERE 
-     (player1_id = ? AND player2_id = ?) 
-     OR (player1_id = ? AND player2_id = ?)
-     ORDER BY played_at DESC`,
-    [user1, user2, user2, user1],
-    (err, results) => {
-      if (err) return res.status(500).send(err);
-      res.send(results);
+  // Vérifier si les deux ont joué
+  if (duelData.tireur && duelData.gardien) {
+    let result;
+    if (duelData.tireur.choice === duelData.gardien.choice) {
+      result = '🧤 Arrêt du gardien !';
+    } else {
+      result = '🎯 But marqué !';
     }
-  );
-});
 
-// Duel du jour entre deux joueurs ?
-router.get('/today/:user1/:user2', (req, res) => {
-  const { user1, user2 } = req.params;
-  db.query(
-    `SELECT * FROM duels WHERE 
-     ((player1_id = ? AND player2_id = ?) OR (player1_id = ? AND player2_id = ?))
-     AND DATE(played_at) = CURDATE()`,
-    [user1, user2, user2, user1],
-    (err, results) => {
-      if (err) return res.status(500).send(err);
-      res.send({ alreadyPlayed: results.length > 0 });
-    }
-  );
+    // Sauvegarde du résultat pour envoyer à tout le monde
+    const fullResult = {
+      result,
+      tireur: duelData.tireur,
+      gardien: duelData.gardien
+    };
+
+    // Reset pour un nouveau duel
+    duelData = { tireur: null, gardien: null };
+
+    return res.json(fullResult);
+  }
+
+  res.json({ message: "En attente de l'autre joueur..." });
 });
 
 module.exports = router;

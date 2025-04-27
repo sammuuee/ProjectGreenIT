@@ -1,105 +1,96 @@
 <template>
     <div class="penalty-container">
-      <h1>⚽ Duel Penalty ⚽</h1>
-      <p v-if="role === 'tireur'">Tu es le <strong>Tireur</strong> 🎯 : choisis où tirer !</p>
-      <p v-else-if="role === 'gardien'">Tu es le <strong>Gardien</strong> 🧤 : choisis où plonger !</p>
+      <h1>Penalty Game ⚽</h1>
+      <p v-if="!result">Choisis un côté :</p>
   
-      <div class="choices">
-        <button @click="choose('left')">⬅️ Gauche</button>
-        <button @click="choose('center')">⬆️ Centre</button>
-        <button @click="choose('right')">➡️ Droite</button>
+      <div v-if="!hasChosen">
+        <button @click="makeChoice('left')">Gauche</button>
+        <button @click="makeChoice('center')">Centre</button>
+        <button @click="makeChoice('right')">Droite</button>
       </div>
   
-      <div v-if="result" class="result">
-        <p><strong>Résultat :</strong> {{ result }}</p>
-        <button class="back" @click="$emit('back')">Retour au Chat</button>
+      <p v-if="hasChosen && !result">En attente de l'autre joueur...</p>
+  
+      <div v-if="result">
+        <h2>{{ result }}</h2>
+        <button @click="$emit('back')">Retour au Chat</button>
       </div>
     </div>
 </template>
   
 <script>
+  import axios from 'axios';
+  
   export default {
     props: ['user', 'friendId', 'serverUrl'],
     data() {
       return {
-        role: '', // 'tireur' ou 'gardien'
-        playerChoice: '',
-        opponentChoice: '',
-        result: '',
+        hasChosen: false,
+        result: null,
+        polling: null
       };
     },
-    created() {
-      // Attribuer le rôle au hasard pour l'instant
-      this.role = Math.random() < 0.5 ? 'tireur' : 'gardien';
-    },
     methods: {
-      async choose(direction) {
-        this.playerChoice = direction;
+      async makeChoice(direction) {
+        try {
+          // Déterminer le rôle au hasard
+          const role = Math.random() > 0.5 ? 'tireur' : 'gardien';
   
-        // Simulation : pour le test, l'adversaire choisit au hasard
-        this.opponentChoice = ['left', 'center', 'right'][Math.floor(Math.random() * 3)];
+          await axios.post(`${this.serverUrl}/api/penalty/choose`, {
+            userId: this.user.id,
+            role,
+            choice: direction
+          });
   
-        this.computeResult();
-      },
-      computeResult() {
-        if (this.role === 'tireur') {
-          if (this.playerChoice !== this.opponentChoice) {
-            this.result = '🎯 BUT !';
-          } else {
-            this.result = '🧤 Arrêt du gardien !';
-          }
-        } else if (this.role === 'gardien') {
-          if (this.playerChoice === this.opponentChoice) {
-            this.result = '🧤 Tu as arrêté le tir !';
-          } else {
-            this.result = '🎯 Tu as encaissé un but...';
-          }
+          this.hasChosen = true;
+          this.pollForResult();
+        } catch (err) {
+          console.error('Erreur en envoyant le choix', err);
         }
+      },
+      pollForResult() {
+        this.polling = setInterval(async () => {
+          try {
+            const res = await axios.post(`${this.serverUrl}/api/penalty/choose`, {
+              userId: this.user.id,
+              role: 'check',
+              choice: 'none'
+            });
+  
+            if (res.data.result) {
+              this.result = res.data.result;
+              clearInterval(this.polling);
+            }
+          } catch (err) {
+            console.error('Erreur en polling du resultat', err);
+          }
+        }, 2000);
       }
+    },
+    beforeUnmount() {
+      clearInterval(this.polling);
     }
   };
 </script>
   
-<style scoped>
+<style>
   .penalty-container {
     text-align: center;
     margin-top: 50px;
     color: white;
   }
-  
-  .choices {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin: 30px 0;
-  }
-  
   button {
     background-color: #0078ff;
     color: white;
-    padding: 12px 20px;
     border: none;
-    border-radius: 10px;
+    padding: 10px 20px;
+    margin: 10px;
+    border-radius: 8px;
     font-size: 18px;
     cursor: pointer;
   }
-  
   button:hover {
     background-color: #005bb5;
   }
-  
-  .result {
-    margin-top: 30px;
-    font-size: 24px;
-    font-weight: bold;
-  }
-  
-  .back {
-    margin-top: 40px;
-    background-color: #ff5c5c;
-  }
-  
-  .back:hover {
-    background-color: #cc4444;
-  }
 </style>
+  
