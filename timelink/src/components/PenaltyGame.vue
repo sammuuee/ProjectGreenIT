@@ -13,7 +13,7 @@
       </div>
   
       <div v-else>
-        <h2>{{ result.result }}</h2>
+        <h2>{{ result }}</h2>
         <button @click="$emit('back')">Retour au Chat</button>
       </div>
     </div>
@@ -33,7 +33,8 @@
       };
     },
     mounted() {
-      this.role = Math.random() > 0.5 ? 'tireur' : 'gardien'; // tireur ou gardien aléatoirement
+      // Déterminer qui est tireur ou gardien en fonction de l'id utilisateur
+      this.role = this.user.id < this.friendId ? 'tireur' : 'gardien';
     },
     methods: {
       async makeChoice(side) {
@@ -51,11 +52,12 @@
         this.polling = setInterval(async () => {
           const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
             userId: this.user.id,
-            role: 'check'
+            role: this.role,
+            choice: null // <<< On envoie null ici pour juste "vérifier"
           });
   
           if (res.data.result) {
-            this.result = res.data;
+            this.result = res.data.result; // attention ici
             clearInterval(this.polling);
           }
         }, 1000); // Toutes les secondes
@@ -69,7 +71,7 @@
   };
 </script>
   
-<style>
+<style scoped>
   .penalty-container {
     text-align: center;
     margin-top: 50px;
@@ -89,4 +91,3 @@
     background-color: #005bb5;
   }
 </style>
-  
