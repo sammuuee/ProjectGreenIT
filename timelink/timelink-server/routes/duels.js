@@ -1,22 +1,37 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database/db'); // Ton fichier connexion MySQL
+const db = require('../database/db');
 
-// Créer un duel ou retrouver
+// Créer un duel (si pas déjà existant)
 router.post('/start', (req, res) => {
   const { player1_id, player2_id } = req.body;
 
+  const [p1, p2] = player1_id < player2_id ? [player1_id, player2_id] : [player2_id, player1_id];
+
   db.query(
-    'INSERT INTO penalty_duels (player1_id, player2_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP',
-    [player1_id, player2_id],
-    (err, result) => {
-      if (err) return res.status(500).send({ message: 'Erreur création duel' });
-      res.send({ message: 'Duel prêt' });
+    'SELECT * FROM penalty_duels WHERE player1_id = ? AND player2_id = ?',
+    [p1, p2],
+    (err, results) => {
+      if (err) return res.status(500).send({ message: 'Erreur serveur' });
+
+      if (results.length === 0) {
+        // Pas encore de duel, on le crée
+        db.query(
+          'INSERT INTO penalty_duels (player1_id, player2_id) VALUES (?, ?)',
+          [p1, p2],
+          (err2) => {
+            if (err2) return res.status(500).send({ message: 'Erreur création duel' });
+            res.send({ message: 'Duel créé' });
+          }
+        );
+      } else {
+        res.send({ message: 'Duel déjà prêt' });
+      }
     }
   );
 });
 
-// Envoyer choix / Vérifier résultat
+// Envoyer un choix / Vérifier résultat
 router.post('/choose', (req, res) => {
   const { userId, friendId, choice } = req.body;
 
@@ -31,21 +46,21 @@ router.post('/choose', (req, res) => {
 
       const duel = results[0];
 
-      // Sauvegarder le choix
       const isPlayer1 = userId === p1;
       const column = isPlayer1 ? 'player1_choice' : 'player2_choice';
 
       if (choice) {
+        // Mettre à jour choix
         db.query(
           `UPDATE penalty_duels SET ${column} = ? WHERE id = ?`,
           [choice, duel.id],
           (err2) => {
-            if (err2) return res.status(500).send({ message: 'Erreur maj choix' });
+            if (err2) return res.status(500).send({ message: 'Erreur mise à jour' });
             res.send({ finished: false });
           }
         );
       } else {
-        // Si on veut juste vérifier sans choix
+        // Vérifier les choix
         if (duel.player1_choice && duel.player2_choice) {
           let winnerId;
           if (duel.player1_choice === duel.player2_choice) {
@@ -54,7 +69,6 @@ router.post('/choose', (req, res) => {
             winnerId = p1; // Tireur gagne
           }
 
-          // Duel terminé : supprimer pour pas polluer
           db.query('DELETE FROM penalty_duels WHERE id = ?', [duel.id], () => {});
 
           return res.send({ finished: true, winnerId });
