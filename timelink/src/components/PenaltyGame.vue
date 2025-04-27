@@ -50,18 +50,16 @@
       },
       startPollingResult() {
         this.polling = setInterval(async () => {
-          const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
-            userId: this.user.id,
-            role: this.role,
-            choice: null // <<< On envoie null ici pour juste "vérifier"
-          });
-  
-          if (res.data.result) {
-            this.result = res.data.result; // attention ici
+            const res = await axios.post(`${this.serverUrl}/api/duels/check`, {
+            userId: this.user.id
+            });
+
+            if (res.data.result) {
+            this.result = res.data.result;
             clearInterval(this.polling);
-          }
+            }
         }, 1000); // Toutes les secondes
-      }
+        }
     },
     beforeUnmount() {
       if (this.polling) {

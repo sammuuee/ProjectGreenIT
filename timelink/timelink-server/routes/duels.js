@@ -16,7 +16,7 @@ router.post('/start', (req, res) => {
   res.send({ message: 'Duel commencé !' });
 });
 
-// Envoyer un choix ou checker le résultat
+// Envoyer un choix
 router.post('/choose', (req, res) => {
   const { userId, role, choice } = req.body;
 
@@ -26,16 +26,28 @@ router.post('/choose', (req, res) => {
   const duel = duels[duelKey];
 
   if (role === 'tireur') {
-    if (choice) duel.tireurChoice = choice;
+    duel.tireurChoice = choice;
   } else if (role === 'gardien') {
-    if (choice) duel.gardienChoice = choice;
+    duel.gardienChoice = choice;
   }
+
+  res.send({ message: 'Choix enregistré.' });
+});
+
+// Vérifier si les deux joueurs ont choisi
+router.post('/check', (req, res) => {
+  const { userId } = req.body;
+
+  const duelKey = Object.keys(duels).find(key => key.includes(userId.toString()));
+  if (!duelKey) return res.status(400).send({ message: "Duel non trouvé." });
+
+  const duel = duels[duelKey];
 
   if (duel.tireurChoice && duel.gardienChoice) {
     const success = duel.tireurChoice !== duel.gardienChoice;
     const message = success ? "BUT ! 🎯" : "ARRÊTÉ ! 🧤";
 
-    // Réinitialiser ce duel pour éviter des bugs
+    // Nettoyer le duel pour éviter les fuites mémoire
     delete duels[duelKey];
 
     return res.send({ result: message });
