@@ -1,76 +1,105 @@
 <template>
     <div class="penalty-container">
-      <h2>Mini Tir au but ⚽</h2>
+      <h1>⚽ Duel Penalty ⚽</h1>
+      <p v-if="role === 'tireur'">Tu es le <strong>Tireur</strong> 🎯 : choisis où tirer !</p>
+      <p v-else-if="role === 'gardien'">Tu es le <strong>Gardien</strong> 🧤 : choisis où plonger !</p>
   
-      <div v-if="!hasShot">
-        <h3>Choisis où tirer :</h3>
-        <button @click="shoot('left')">Gauche</button>
-        <button @click="shoot('center')">Milieu</button>
-        <button @click="shoot('right')">Droite</button>
+      <div class="choices">
+        <button @click="choose('left')">⬅️ Gauche</button>
+        <button @click="choose('center')">⬆️ Centre</button>
+        <button @click="choose('right')">➡️ Droite</button>
       </div>
   
-      <div v-else-if="!hasSaved">
-        <h3>Ton adversaire plonge... Attends</h3>
-      </div>
-  
-      <div v-else>
-        <h3>{{ resultMessage }}</h3>
-        <button @click="$emit('back')">Retour au chat</button>
+      <div v-if="result" class="result">
+        <p><strong>Résultat :</strong> {{ result }}</p>
+        <button class="back" @click="$emit('back')">Retour au Chat</button>
       </div>
     </div>
 </template>
   
 <script>
-  import axios from 'axios';
-  
   export default {
     props: ['user', 'friendId', 'serverUrl'],
     data() {
       return {
-        hasShot: false,
-        hasSaved: false,
-        resultMessage: ''
+        role: '', // 'tireur' ou 'gardien'
+        playerChoice: '',
+        opponentChoice: '',
+        result: '',
       };
     },
+    created() {
+      // Attribuer le rôle au hasard pour l'instant
+      this.role = Math.random() < 0.5 ? 'tireur' : 'gardien';
+    },
     methods: {
-      async shoot(direction) {
-        try {
-          // Ici tu simules simplement le duel pour ce mini jeu
-          const response = await axios.post(`${this.serverUrl}/api/duels/penalty`, {
-            shooter_id: this.user.id,
-            goalie_id: this.friendId,
-            shot_direction: direction
-          });
+      async choose(direction) {
+        this.playerChoice = direction;
   
-          const result = response.data.result;
-          this.resultMessage = result === 'goal' ? 'BUTTTT 🎉' : 'Arrêté 😢';
-          this.hasShot = true;
-          this.hasSaved = true;
-        } catch (error) {
-          console.error('Erreur penalty:', error);
-          alert('Erreur lors du tir');
+        // Simulation : pour le test, l'adversaire choisit au hasard
+        this.opponentChoice = ['left', 'center', 'right'][Math.floor(Math.random() * 3)];
+  
+        this.computeResult();
+      },
+      computeResult() {
+        if (this.role === 'tireur') {
+          if (this.playerChoice !== this.opponentChoice) {
+            this.result = '🎯 BUT !';
+          } else {
+            this.result = '🧤 Arrêt du gardien !';
+          }
+        } else if (this.role === 'gardien') {
+          if (this.playerChoice === this.opponentChoice) {
+            this.result = '🧤 Tu as arrêté le tir !';
+          } else {
+            this.result = '🎯 Tu as encaissé un but...';
+          }
         }
       }
     }
   };
 </script>
   
-<style>
+<style scoped>
   .penalty-container {
     text-align: center;
-    padding: 20px;
+    margin-top: 50px;
+    color: white;
   }
+  
+  .choices {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 30px 0;
+  }
+  
   button {
     background-color: #0078ff;
     color: white;
+    padding: 12px 20px;
     border: none;
-    padding: 10px 20px;
-    margin: 10px;
+    border-radius: 10px;
     font-size: 18px;
-    border-radius: 8px;
     cursor: pointer;
   }
+  
   button:hover {
     background-color: #005bb5;
+  }
+  
+  .result {
+    margin-top: 30px;
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  .back {
+    margin-top: 40px;
+    background-color: #ff5c5c;
+  }
+  
+  .back:hover {
+    background-color: #cc4444;
   }
 </style>
