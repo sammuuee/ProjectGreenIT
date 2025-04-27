@@ -2,7 +2,7 @@
   <div class="chat-container">
     <template v-if="page === 'chat'">
       <h2>Bienvenue {{ user.username }}</h2>
-      <button @click="$emit('go-friends')"> Ajouter des amis</button>
+      <button @click="$emit('go-friends')">Ajouter des amis</button>
 
       <h3>Mes amis</h3>
       <ul>
@@ -46,23 +46,23 @@
 </template>
 
 <script>
-import PenaltyGame from './PenaltyGame.vue';
 import axios from 'axios';
+import PenaltyGame from './PenaltyGame.vue';
 
 export default {
   components: { PenaltyGame },
   props: ['user'],
   data() {
     return {
-      serverUrl: import.meta.env.VITE_API_URL,
-      friends: [],
-      messages: [],
-      newMessage: '',
+      page: 'chat',
+      currentFriendId: null,
       receiverUsername: '',
       receiverId: null,
+      newMessage: '',
+      messages: [],
+      friends: [],
       polling: null,
-      page: 'chat', // <-- important
-      currentFriendId: null
+      serverUrl: import.meta.env.VITE_API_URL
     };
   },
   mounted() {
@@ -75,11 +75,63 @@ export default {
     clearInterval(this.polling);
   },
   methods: {
-    async fetchFriends() { /* ton code fetch friends ici */ },
-    async loadConversation() { /* ton code load conversation ici */ },
-    async sendMessageToUser() { /* ton code envoyer message ici */ },
-    startConversationWith(username) {
+    async fetchFriends() {
+      const res = await axios.get(`${this.serverUrl}/api/friends/list/${this.user.id}`);
+      const rawFriends = res.data;
+
+      const mapped = await Promise.all(
+        rawFriends.map(async f => {
+          const otherId = f.requester_id === this.user.id ? f.receiver_id : f.requester_id;
+          const resUser = await axios.get(`${this.serverUrl}/api/users/by-id/${otherId}`);
+          const data = resUser.data;
+          return { id: otherId, username: data.username };
+        })
+      );
+
+      // Supprimer les doublons par id
+      this.friends = Array.from(new Map(mapped.map(f => [f.id, f])).values());
+    },
+    async startConversationWith(username) {
       this.receiverUsername = username;
+      await this.loadConversation();
+    },
+    async fetchReceiverIdFromUsername() {
+      const res = await axios.get(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
+      const data = res.data;
+      if (res.status === 200) {
+        this.receiverId = data.id;
+        return true;
+      } else {
+        alert(data.message || 'Utilisateur inconnu');
+        return false;
+      }
+    },
+    async loadConversation() {
+      const ok = await this.fetchReceiverIdFromUsername();
+      if (!ok) return;
+
+      const res = await axios.get(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
+      this.messages = res.data;
+    },
+    async sendMessageToUser() {
+      const ok = await this.fetchReceiverIdFromUsername();
+      if (!ok || !this.newMessage.trim()) return;
+
+      const res = await axios.get(`${this.serverUrl}/api/friends/status/${this.user.id}/${this.receiverId}`);
+      const data = res.data;
+
+      if (data.status !== 'accepted') {
+        alert('Vous devez être amis pour discuter.');
+        return;
+      }
+
+      await axios.post(`${this.serverUrl}/api/messages/send`, {
+        sender_id: this.user.id,
+        receiver_id: this.receiverId,
+        content: this.newMessage
+      });
+
+      this.newMessage = '';
       this.loadConversation();
     },
     startPenalty(friendId) {
@@ -90,7 +142,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .chat-box {
   border: none;
   background: #1e1e2f;
