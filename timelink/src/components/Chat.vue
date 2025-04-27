@@ -36,6 +36,7 @@
 
 <script>
 import axios from 'axios';
+
 export default {
   props: ['user'],
   data() {
@@ -46,7 +47,7 @@ export default {
       messages: [],
       friends: [],
       polling: null,
-      serverUrl: 'http://10.3.203.73:3000'
+      serverUrl: import.meta.env.VITE_API_URL
     };
   },
   mounted() {
@@ -61,13 +62,13 @@ export default {
   methods: {
     async fetchFriends() {
       const res = await axios.get(`${this.serverUrl}/api/friends/list/${this.user.id}`);
-      const rawFriends = await res.json();
+      const rawFriends = res.data;
 
       const mapped = await Promise.all(
         rawFriends.map(async f => {
           const otherId = f.requester_id === this.user.id ? f.receiver_id : f.requester_id;
           const res = await axios.get(`${this.serverUrl}/api/users/by-id/${otherId}`);
-          const data = await res.json();
+          const data = res.data;
           return { id: otherId, username: data.username };
         })
       );
@@ -80,8 +81,8 @@ export default {
     },
     async fetchReceiverIdFromUsername() {
       const res = await axios.get(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
-      const data = await res.json();
-      if (res.ok) {
+      const data = res.data;
+      if (res.status === 200) {
         this.receiverId = data.id;
         return true;
       } else {
@@ -94,55 +95,45 @@ export default {
       if (!ok) return;
 
       const res = await axios.get(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
-      const data = await res.json();
+      const data = res.data;
       this.messages = data;
     },
     async sendMessageToUser() {
       const ok = await this.fetchReceiverIdFromUsername();
       if (!ok || !this.newMessage.trim()) return;
 
-      // Bloque si pas amis
       const res = await axios.get(`${this.serverUrl}/api/friends/status/${this.user.id}/${this.receiverId}`);
-      const data = await res.json();
+      const data = res.data;
 
       if (data.status !== 'accepted') {
         alert('Vous devez être amis pour discuter.');
         return;
       }
 
-      await axios.get(`${this.serverUrl}/api/messages/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender_id: this.user.id,
-          receiver_id: this.receiverId,
-          content: this.newMessage
-        })
+      await axios.post(`${this.serverUrl}/api/messages/send`, {
+        sender_id: this.user.id,
+        receiver_id: this.receiverId,
+        content: this.newMessage
       });
 
       this.newMessage = '';
       this.loadConversation();
     },
     async duelWith(friendId) {
-      // Empêcher de faire 2 duels par jour
       const check = await axios.get(`${this.serverUrl}/api/duels/today/${this.user.id}/${friendId}`);
-      const { alreadyPlayed } = await check.json();
+      const { alreadyPlayed } = check.data;
 
       if (alreadyPlayed) {
         alert('Vous avez déjà fait un duel aujourd’hui !');
         return;
       }
 
-      const duel = await axios.get(`${this.serverUrl}/api/duels/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player1_id: this.user.id,
-          player2_id: friendId
-        })
+      const duel = await axios.post(`${this.serverUrl}/api/duels/start`, {
+        player1_id: this.user.id,
+        player2_id: friendId
       });
 
-      const result = await duel.json();
+      const result = duel.data;
       const message = result.winner_id === this.user.id ? 'Tu as gagné ! 🏆' : 'Tu as perdu... 😢';
       alert(`Duel terminé !\n${message}`);
     }
