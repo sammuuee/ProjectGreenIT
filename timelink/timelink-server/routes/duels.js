@@ -1,59 +1,69 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../database/db'); // Ton fichier connexion MySQL
 
-const duels = {}; // Ex: { '1-2': { shooter: {id, choice}, keeper: {id, choice} } }
-
-function getDuelKey(id1, id2) {
-  return [id1, id2].sort((a, b) => a - b).join('-');
-}
-
-// Commencer un duel
+// Créer un duel ou retrouver
 router.post('/start', (req, res) => {
   const { player1_id, player2_id } = req.body;
-  const key = getDuelKey(player1_id, player2_id);
-  duels[key] = { shooter: {}, keeper: {} };
-  res.send({ message: 'Duel créé' });
+
+  db.query(
+    'INSERT INTO penalty_duels (player1_id, player2_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP',
+    [player1_id, player2_id],
+    (err, result) => {
+      if (err) return res.status(500).send({ message: 'Erreur création duel' });
+      res.send({ message: 'Duel prêt' });
+    }
+  );
 });
 
-// Envoyer un choix
+// Envoyer choix / Vérifier résultat
 router.post('/choose', (req, res) => {
   const { userId, friendId, choice } = req.body;
 
-  const key = getDuelKey(userId, friendId);
-  if (!duels[key]) {
-    return res.status(404).send({ message: 'Duel non trouvé' });
-  }
+  const [p1, p2] = userId < friendId ? [userId, friendId] : [friendId, userId];
 
-  const duel = duels[key];
+  db.query(
+    'SELECT * FROM penalty_duels WHERE player1_id = ? AND player2_id = ?',
+    [p1, p2],
+    (err, results) => {
+      if (err) return res.status(500).send({ message: 'Erreur serveur' });
+      if (results.length === 0) return res.status(404).send({ message: 'Duel introuvable' });
 
-  // Définir qui est tireur / gardien
-  if (!duel.shooter.id && !duel.keeper.id) {
-    // Premier à choisir = tireur
-    duel.shooter = { id: userId, choice };
-  } else if (duel.shooter.id === userId) {
-    duel.shooter.choice = choice;
-  } else if (!duel.keeper.id || duel.keeper.id === userId) {
-    duel.keeper = { id: userId, choice };
-  } else {
-    return res.status(400).send({ message: 'Erreur assignation joueur' });
-  }
+      const duel = results[0];
 
-  // Vérifier si les deux ont choisi
-  if (duel.shooter.choice && duel.keeper.choice) {
-    let winnerId;
-    if (duel.shooter.choice === duel.keeper.choice) {
-      winnerId = duel.keeper.id; // gardien gagne
-    } else {
-      winnerId = duel.shooter.id; // tireur gagne
+      // Sauvegarder le choix
+      const isPlayer1 = userId === p1;
+      const column = isPlayer1 ? 'player1_choice' : 'player2_choice';
+
+      if (choice) {
+        db.query(
+          `UPDATE penalty_duels SET ${column} = ? WHERE id = ?`,
+          [choice, duel.id],
+          (err2) => {
+            if (err2) return res.status(500).send({ message: 'Erreur maj choix' });
+            res.send({ finished: false });
+          }
+        );
+      } else {
+        // Si on veut juste vérifier sans choix
+        if (duel.player1_choice && duel.player2_choice) {
+          let winnerId;
+          if (duel.player1_choice === duel.player2_choice) {
+            winnerId = p2; // Gardien gagne
+          } else {
+            winnerId = p1; // Tireur gagne
+          }
+
+          // Duel terminé : supprimer pour pas polluer
+          db.query('DELETE FROM penalty_duels WHERE id = ?', [duel.id], () => {});
+
+          return res.send({ finished: true, winnerId });
+        } else {
+          return res.send({ finished: false });
+        }
+      }
     }
-
-    delete duels[key];
-
-    return res.send({ finished: true, winnerId });
-  }
-
-  // Sinon, on attend l'autre
-  res.send({ finished: false });
+  );
 });
 
 module.exports = router;
