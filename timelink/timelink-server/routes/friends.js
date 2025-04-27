@@ -6,8 +6,8 @@ const router = express.Router();
 router.post('/request', (req, res) => {
   const { requester_id, receiver_id } = req.body;
   db.query(
-    'INSERT INTO friends (requester_id, receiver_id) VALUES (?, ?)',
-    [requester_id, receiver_id],
+    'INSERT INTO friends (requester_id, receiver_id, status) VALUES (?, ?, ?)',
+    [requester_id, receiver_id, 'pending'],
     (err, result) => {
       if (err) return res.status(500).send(err);
       res.send({ message: 'Demande envoyée' });
