@@ -19,6 +19,18 @@ router.post('/start', (req, res) => {
     }
   );
 });
+router.post('/penalty', (req, res) => {
+  const { shooter_id, goalie_id, shot_direction } = req.body;
+
+  // Simuler la parade au hasard
+  const goalie_guess = ['left', 'center', 'right'][Math.floor(Math.random() * 3)];
+
+  if (shot_direction === goalie_guess) {
+    res.send({ result: 'saved' }); // Arrêté
+  } else {
+    res.send({ result: 'goal' }); // BUT
+  }
+});
 
 // Historique des duels entre deux joueurs
 router.get('/history/:user1/:user2', (req, res) => {

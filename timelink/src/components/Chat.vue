@@ -1,36 +1,50 @@
 <!-- src/components/Chat.vue -->
+import PenaltyGame from './PenaltyGame.vue';
+
 <template>
   <div>
     <h2>Bienvenue {{ user.username }}</h2>
-    <button @click="$emit('go-friends')"> Ajouter des amis</button>
-    <h3>Mes amis</h3>
-    <ul>
-      <li v-for="a in friends" :key="a.id">
-        <button @click="startConversationWith(a.username)">
-          💬 {{ a.username }}
-        </button>
-        <button @click="duelWith(a.id)">
-          ⚔️ Duel
-        </button>
-      </li>
-    </ul>
 
-    <div class="chat-box">
-      <div
-        v-for="msg in messages"
-        :key="msg.id"
-        class="message"
-        :class="{ self: msg.sender_id === user.id, other: msg.sender_id !== user.id }"
-      >
-        {{ msg.content }}
+    <button v-if="page === 'chat'" @click="$emit('go-friends')"> Ajouter des amis</button>
+
+    <div v-if="page === 'chat'">
+      <h3>Mes amis</h3>
+      <ul>
+        <li v-for="a in friends" :key="a.id">
+          <button @click="startConversationWith(a.username)">
+            💬 {{ a.username }}
+          </button>
+          <button @click="startPenalty(a.id)">
+            ⚔️ Duel (Penalty)
+          </button>
+        </li>
+      </ul>
+
+      <div class="chat-box">
+        <div
+          v-for="msg in messages"
+          :key="msg.id"
+          class="message"
+          :class="{ self: msg.sender_id === user.id, other: msg.sender_id !== user.id }"
+        >
+          {{ msg.content }}
+        </div>
       </div>
+
+      <input v-model="newMessage" placeholder="Écrire un message..." @keyup.enter="sendMessageToUser" />
+      <button @click="sendMessageToUser">Envoyer</button>
+
+      <br /><br />
+      <button @click="$emit('logout')">Déconnexion</button>
     </div>
 
-    <input v-model="newMessage" placeholder="Écrire un message..." @keyup.enter="sendMessageToUser" />
-    <button @click="sendMessageToUser">Envoyer</button>
-
-    <br /><br />
-    <button @click="$emit('logout')">Déconnexion</button>
+    <PenaltyGame
+      v-else-if="page === 'penalty'"
+      :user="user"
+      :friendId="currentFriendId"
+      :serverUrl="serverUrl"
+      @back="page = 'chat'"
+    />
   </div>
 </template>
 
@@ -41,6 +55,8 @@ export default {
   props: ['user'],
   data() {
     return {
+      page: 'chat',
+      currentFriendId: null,
       receiverUsername: '',
       receiverId: null,
       newMessage: '',
@@ -137,6 +153,10 @@ export default {
       const result = duel.data;
       const message = result.winner_id === this.user.id ? 'Tu as gagné ! 🏆' : 'Tu as perdu... 😢';
       alert(`Duel terminé !\n${message}`);
+    },
+    startPenalty(friendId) {
+      this.currentFriendId = friendId;
+      this.page = 'penalty';
     }
   }
 };
