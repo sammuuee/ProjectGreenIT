@@ -1,11 +1,12 @@
 <template>
     <div class="penalty-container">
       <h1>Penalty Game ⚽</h1>
+  
       <div v-if="!choiceMade">
         <p>Choisis un côté :</p>
-        <button @click="makeChoice('gauche')">Gauche</button>
-        <button @click="makeChoice('centre')">Centre</button>
-        <button @click="makeChoice('droite')">Droite</button>
+        <button @click="sendChoice('gauche')">Gauche</button>
+        <button @click="sendChoice('centre')">Centre</button>
+        <button @click="sendChoice('droite')">Droite</button>
       </div>
   
       <div v-else-if="!result">
@@ -21,38 +22,42 @@
   
 <script>
   import axios from 'axios';
+  
   export default {
     props: ['user', 'friendId', 'serverUrl'],
     data() {
       return {
-        role: '',
         choiceMade: false,
         result: null,
         polling: null,
       };
     },
-    mounted() {
-      this.role = this.user.id < this.friendId ? 'tireur' : 'gardien';
-    },
     methods: {
-      async makeChoice(side) {
+      async sendChoice(choice) {
         this.choiceMade = true;
+  
         await axios.post(`${this.serverUrl}/api/duels/choose`, {
           userId: this.user.id,
-          role: this.role,
-          choice: side
+          friendId: this.friendId,
+          choice: choice
         });
-        this.startPollingResult();
+  
+        this.startPolling();
       },
-      startPollingResult() {
+      startPolling() {
         this.polling = setInterval(async () => {
           const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
             userId: this.user.id,
-            role: this.role,
-            choice: null
+            friendId: this.friendId,
+            choice: null // On ne renvoie pas de nouveau choix
           });
-          if (res.data.result) {
-            this.result = res.data.result;
+  
+          if (res.data.finished) {
+            if (res.data.winnerId == this.user.id) {
+              this.result = "🎯 Tu as gagné le duel !";
+            } else {
+              this.result = "🧤 Tu as perdu le duel !";
+            }
             clearInterval(this.polling);
           }
         }, 1000);
