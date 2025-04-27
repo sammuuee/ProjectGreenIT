@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const duels = {}; // { key: { tireurChoice, gardienChoice, result, views } }
+const duels = {}; // Ex: { '1-2': { shooter: {id, choice}, keeper: {id, choice} } }
 
 function getDuelKey(id1, id2) {
   return [id1, id2].sort((a, b) => a - b).join('-');
@@ -11,44 +11,48 @@ function getDuelKey(id1, id2) {
 router.post('/start', (req, res) => {
   const { player1_id, player2_id } = req.body;
   const key = getDuelKey(player1_id, player2_id);
-  duels[key] = { tireurChoice: null, gardienChoice: null, result: null, views: new Set() };
-  res.send({ message: 'Duel commencé !' });
+  duels[key] = { shooter: {}, keeper: {} };
+  res.send({ message: 'Duel créé' });
 });
 
-// Envoyer un choix ou checker le résultat
+// Envoyer un choix
 router.post('/choose', (req, res) => {
   const { userId, friendId, choice } = req.body;
-  if (!userId || !friendId) {
-    return res.status(400).send({ error: "Missing userId or friendId" });
+
+  const key = getDuelKey(userId, friendId);
+  if (!duels[key]) {
+    return res.status(404).send({ message: 'Duel non trouvé' });
   }
 
-  const duelKey = getDuelKey(userId, friendId);
-  if (!duels[duelKey]) {
-    duels[duelKey] = { [userId]: null, [friendId]: null };
+  const duel = duels[key];
+
+  // Définir qui est tireur / gardien
+  if (!duel.shooter.id && !duel.keeper.id) {
+    // Premier à choisir = tireur
+    duel.shooter = { id: userId, choice };
+  } else if (duel.shooter.id === userId) {
+    duel.shooter.choice = choice;
+  } else if (!duel.keeper.id || duel.keeper.id === userId) {
+    duel.keeper = { id: userId, choice };
+  } else {
+    return res.status(400).send({ message: 'Erreur assignation joueur' });
   }
 
-  if (choice !== null) {
-    duels[duelKey][userId] = choice;
-  }
-
-  const user1Choice = duels[duelKey][userId];
-  const user2Choice = duels[duelKey][friendId];
-
-  if (user1Choice !== null && user2Choice !== null) {
-    // Duel terminé
+  // Vérifier si les deux ont choisi
+  if (duel.shooter.choice && duel.keeper.choice) {
     let winnerId;
-
-    if (user1Choice === user2Choice) {
-      winnerId = friendId; // le gardien arrête
+    if (duel.shooter.choice === duel.keeper.choice) {
+      winnerId = duel.keeper.id; // gardien gagne
     } else {
-      winnerId = userId; // le tireur marque
+      winnerId = duel.shooter.id; // tireur gagne
     }
 
-    delete duels[duelKey];
+    delete duels[key];
 
     return res.send({ finished: true, winnerId });
   }
 
+  // Sinon, on attend l'autre
   res.send({ finished: false });
 });
 

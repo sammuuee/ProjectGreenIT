@@ -49,11 +49,11 @@
           const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
             userId: this.user.id,
             friendId: this.friendId,
-            choice: null // On ne renvoie pas de nouveau choix
+            choice: null
           });
   
           if (res.data.finished) {
-            if (res.data.winnerId == this.user.id) {
+            if (res.data.winnerId === this.user.id) {
               this.result = "🎯 Tu as gagné le duel !";
             } else {
               this.result = "🧤 Tu as perdu le duel !";
@@ -88,4 +88,4 @@
   button:hover {
     background-color: #005bb5;
   }
-  </style>
+</style>
