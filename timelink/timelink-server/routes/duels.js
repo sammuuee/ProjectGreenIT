@@ -17,37 +17,39 @@ router.post('/start', (req, res) => {
 
 // Envoyer un choix ou checker le résultat
 router.post('/choose', (req, res) => {
-  const { userId, role, choice } = req.body;
-
-  const duelKey = Object.keys(duels).find(key => key.includes(userId.toString()));
-  if (!duelKey) return res.status(400).send({ message: "Duel non trouvé." });
-
-  const duel = duels[duelKey];
-
-  if (role === 'tireur' && choice) {
-    duel.tireurChoice = choice;
-  } else if (role === 'gardien' && choice) {
-    duel.gardienChoice = choice;
+  const { userId, friendId, choice } = req.body;
+  if (!userId || !friendId) {
+    return res.status(400).send({ error: "Missing userId or friendId" });
   }
 
-  // Si déjà un résultat, juste le renvoyer
-  if (duel.result) {
-    duel.views.add(userId);
-    if (duel.views.size >= 2) {
-      delete duels[duelKey]; // Supprimer le duel après que les 2 joueurs ont vu
+  const duelKey = getDuelKey(userId, friendId);
+  if (!duels[duelKey]) {
+    duels[duelKey] = { [userId]: null, [friendId]: null };
+  }
+
+  if (choice !== null) {
+    duels[duelKey][userId] = choice;
+  }
+
+  const user1Choice = duels[duelKey][userId];
+  const user2Choice = duels[duelKey][friendId];
+
+  if (user1Choice !== null && user2Choice !== null) {
+    // Duel terminé
+    let winnerId;
+
+    if (user1Choice === user2Choice) {
+      winnerId = friendId; // le gardien arrête
+    } else {
+      winnerId = userId; // le tireur marque
     }
-    return res.send({ result: duel.result });
+
+    delete duels[duelKey];
+
+    return res.send({ finished: true, winnerId });
   }
 
-  if (duel.tireurChoice && duel.gardienChoice) {
-    const success = duel.tireurChoice !== duel.gardienChoice;
-    duel.result = success ? "🎯 Tu as marqué !" : "🧤 Ton tir a été arrêté !";
-
-    duel.views.add(userId);
-    return res.send({ result: duel.result });
-  } else {
-    return res.send({ waiting: true });
-  }
+  res.send({ finished: false });
 });
 
 module.exports = router;
