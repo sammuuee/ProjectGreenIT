@@ -6,27 +6,22 @@ const duelRoutes = require('./routes/duels');
 const friendsRoutes = require('./routes/friends');
 
 const app = express();
-const allowedOrigins = ['https://project-green-it.vercel.app'];
 
+// CORS configuration
 app.use(cors({
-  origin: function(origin, callback){
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: 'https://project-green-it.vercel.app',
   credentials: true
 }));
+
 app.use(express.json());
 
+// routes
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/duels', duelRoutes);
-
-
 app.use('/api/friends', friendsRoutes);
 
+// server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0', () => {
