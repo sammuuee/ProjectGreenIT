@@ -17,9 +17,9 @@
         <button @click="$emit('back')">Retour au Chat</button>
       </div>
     </div>
-  </template>
+</template>
   
-  <script>
+<script>
   import axios from 'axios';
   
   export default {
@@ -67,9 +67,9 @@
       }
     }
   };
-  </script>
+</script>
   
-  <style>
+<style>
   .penalty-container {
     text-align: center;
     margin-top: 50px;
@@ -88,5 +88,5 @@
   button:hover {
     background-color: #005bb5;
   }
-  </style>
+</style>
   
