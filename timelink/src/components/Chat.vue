@@ -69,10 +69,38 @@ export default {
       );
       this.friends = Array.from(new Map(mapped.map(f => [f.id, f])).values());
     },
+
     async startConversationWith(username) {
       this.receiverUsername = username;
-      await this.loadConversation();
+      await this.loadConversation(); // ← après correction
     },
+
+    async loadConversation() {
+      const res = await axios.get(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
+      const data = res.data;
+      this.receiverId = data.id;
+
+      const messagesRes = await axios.get(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
+      this.messages = messagesRes.data;
+    },
+
+    async sendMessageToUser() {
+      if (!this.newMessage.trim()) return;
+
+      if (!this.receiverId) {
+        await this.loadConversation();
+      }
+
+      await axios.post(`${this.serverUrl}/api/messages/send`, {
+        sender_id: this.user.id,
+        receiver_id: this.receiverId,
+        content: this.newMessage
+      });
+
+      this.newMessage = '';
+      this.loadConversation();
+    },
+
     async startPenalty(friendId) {
       await axios.post(`${this.serverUrl}/api/duels/start`, {
         player1_id: this.user.id,
@@ -81,7 +109,7 @@ export default {
       this.currentFriendId = friendId;
       this.page = 'penalty';
     }
-  }
+}
 };
 </script>
 
