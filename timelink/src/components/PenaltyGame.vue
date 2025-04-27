@@ -36,7 +36,7 @@
           // Déterminer le rôle au hasard
           const role = Math.random() > 0.5 ? 'tireur' : 'gardien';
   
-          await axios.post(`${this.serverUrl}/api/penalty/choose`, {
+          await axios.post(`${this.serverUrl}/api/duels/choose`, {
             userId: this.user.id,
             role,
             choice: direction
@@ -51,7 +51,7 @@
       pollForResult() {
         this.polling = setInterval(async () => {
           try {
-            const res = await axios.post(`${this.serverUrl}/api/penalty/choose`, {
+            const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
               userId: this.user.id,
               role: 'check',
               choice: 'none'
