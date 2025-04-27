@@ -2,12 +2,11 @@
 import PenaltyGame from './PenaltyGame.vue';
 
 <template>
-  <div>
-    <h2>Bienvenue {{ user.username }}</h2>
-
-    <button v-if="page === 'chat'" @click="$emit('go-friends')"> Ajouter des amis</button>
-
+  <div class="chat-container">
     <div v-if="page === 'chat'">
+      <h2>Bienvenue {{ user.username }}</h2>
+      <button @click="$emit('go-friends')"> Ajouter des amis</button>
+      
       <h3>Mes amis</h3>
       <ul>
         <li v-for="a in friends" :key="a.id">
