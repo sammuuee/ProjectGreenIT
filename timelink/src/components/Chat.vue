@@ -67,13 +67,14 @@ export default {
       const mapped = await Promise.all(
         rawFriends.map(async f => {
           const otherId = f.requester_id === this.user.id ? f.receiver_id : f.requester_id;
-          const res = await axios.get(`${this.serverUrl}/api/users/by-id/${otherId}`);
-          const data = res.data;
+          const resUser = await axios.get(`${this.serverUrl}/api/users/by-id/${otherId}`);
+          const data = resUser.data;
           return { id: otherId, username: data.username };
         })
       );
 
-      this.friends = mapped;
+      // Supprimer les doublons par id
+      this.friends = Array.from(new Map(mapped.map(f => [f.id, f])).values());
     },
     async startConversationWith(username) {
       this.receiverUsername = username;
