@@ -25,7 +25,7 @@ cron.schedule('0 * * * *', () => {
 
   const query = `
     DELETE FROM messages
-    WHERE created_at < NOW() - INTERVAL 24 HOUR
+    WHERE sent_at < NOW() - INTERVAL 24 HOUR
   `;
 
   db.query(query, (err, result) => {
