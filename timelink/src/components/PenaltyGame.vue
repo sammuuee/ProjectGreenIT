@@ -21,7 +21,6 @@
   
 <script>
   import axios from 'axios';
-  
   export default {
     props: ['user', 'friendId', 'serverUrl'],
     data() {
@@ -33,38 +32,34 @@
       };
     },
     mounted() {
-      // Déterminer qui est tireur ou gardien en fonction de l'id utilisateur
       this.role = this.user.id < this.friendId ? 'tireur' : 'gardien';
     },
     methods: {
       async makeChoice(side) {
         this.choiceMade = true;
-  
         await axios.post(`${this.serverUrl}/api/duels/choose`, {
           userId: this.user.id,
           role: this.role,
           choice: side
         });
-  
         this.startPollingResult();
       },
       startPollingResult() {
         this.polling = setInterval(async () => {
-            const res = await axios.post(`${this.serverUrl}/api/duels/check`, {
-            userId: this.user.id
-            });
-
-            if (res.data.result) {
+          const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
+            userId: this.user.id,
+            role: this.role,
+            choice: null
+          });
+          if (res.data.result) {
             this.result = res.data.result;
             clearInterval(this.polling);
-            }
-        }, 1000); // Toutes les secondes
-        }
+          }
+        }, 1000);
+      }
     },
     beforeUnmount() {
-      if (this.polling) {
-        clearInterval(this.polling);
-      }
+      if (this.polling) clearInterval(this.polling);
     }
   };
 </script>
@@ -88,4 +83,4 @@
   button:hover {
     background-color: #005bb5;
   }
-</style>
+  </style>

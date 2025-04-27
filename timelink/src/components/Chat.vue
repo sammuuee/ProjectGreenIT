@@ -1,8 +1,8 @@
 <template>
   <div class="chat-container">
-    <template v-if="page === 'chat'">
+    <div v-if="page === 'chat'">
       <h2>Bienvenue {{ user.username }}</h2>
-      <button @click="$emit('go-friends')">Ajouter des amis</button>
+      <button @click="$emit('go-friends')"> Ajouter des amis</button>
 
       <h3>Mes amis</h3>
       <ul>
@@ -17,12 +17,7 @@
       </ul>
 
       <div class="chat-box">
-        <div
-          v-for="msg in messages"
-          :key="msg.id"
-          class="message"
-          :class="{ self: msg.sender_id === user.id, other: msg.sender_id !== user.id }"
-        >
+        <div v-for="msg in messages" :key="msg.id" class="message" :class="{ self: msg.sender_id === user.id, other: msg.sender_id !== user.id }">
           {{ msg.content }}
         </div>
       </div>
@@ -32,16 +27,9 @@
 
       <br /><br />
       <button @click="$emit('logout')">Déconnexion</button>
-    </template>
+    </div>
 
-    <template v-else-if="page === 'penalty'">
-      <PenaltyGame
-        :user="user"
-        :friendId="currentFriendId"
-        :serverUrl="serverUrl"
-        @back="page = 'chat'"
-      />
-    </template>
+    <PenaltyGame v-else-if="page === 'penalty'" :user="user" :friendId="currentFriendId" :serverUrl="serverUrl" @back="page = 'chat'" />
   </div>
 </template>
 
@@ -67,85 +55,36 @@ export default {
   },
   mounted() {
     this.fetchFriends();
-    this.polling = setInterval(() => {
-      if (this.receiverId) this.loadConversation();
-    }, 2000);
-  },
-  beforeUnmount() {
-    clearInterval(this.polling);
   },
   methods: {
     async fetchFriends() {
       const res = await axios.get(`${this.serverUrl}/api/friends/list/${this.user.id}`);
       const rawFriends = res.data;
-
       const mapped = await Promise.all(
         rawFriends.map(async f => {
           const otherId = f.requester_id === this.user.id ? f.receiver_id : f.requester_id;
           const resUser = await axios.get(`${this.serverUrl}/api/users/by-id/${otherId}`);
-          const data = resUser.data;
-          return { id: otherId, username: data.username };
+          return { id: otherId, username: resUser.data.username };
         })
       );
-
-      // Supprimer les doublons par id
       this.friends = Array.from(new Map(mapped.map(f => [f.id, f])).values());
     },
     async startConversationWith(username) {
       this.receiverUsername = username;
       await this.loadConversation();
     },
-    async fetchReceiverIdFromUsername() {
-      const res = await axios.get(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
-      const data = res.data;
-      if (res.status === 200) {
-        this.receiverId = data.id;
-        return true;
-      } else {
-        alert(data.message || 'Utilisateur inconnu');
-        return false;
-      }
-    },
-    async loadConversation() {
-      const ok = await this.fetchReceiverIdFromUsername();
-      if (!ok) return;
-
-      const res = await axios.get(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
-      this.messages = res.data;
-    },
-    async sendMessageToUser() {
-      const ok = await this.fetchReceiverIdFromUsername();
-      if (!ok || !this.newMessage.trim()) return;
-
-      const res = await axios.get(`${this.serverUrl}/api/friends/status/${this.user.id}/${this.receiverId}`);
-      const data = res.data;
-
-      if (data.status !== 'accepted') {
-        alert('Vous devez être amis pour discuter.');
-        return;
-      }
-
-      await axios.post(`${this.serverUrl}/api/messages/send`, {
-        sender_id: this.user.id,
-        receiver_id: this.receiverId,
-        content: this.newMessage
-      });
-
-      this.newMessage = '';
-      this.loadConversation();
-    },
     async startPenalty(friendId) {
       await axios.post(`${this.serverUrl}/api/duels/start`, {
         player1_id: this.user.id,
         player2_id: friendId
       });
-
       this.currentFriendId = friendId;
       this.page = 'penalty';
     }
   }
 };
 </script>
+
 
 <style scoped>
 .chat-box {
