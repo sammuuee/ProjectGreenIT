@@ -4,15 +4,15 @@
       <p>Bienvenue dans le mini-jeu !</p>
       <button @click="$emit('back')">Retour au Chat</button>
     </div>
-  </template>
+</template>
   
-  <script>
+<script>
   export default {
     props: ['user', 'friendId', 'serverUrl'],
   };
-  </script>
+</script>
   
-  <style>
+<style>
   .penalty-container {
     text-align: center;
     margin-top: 50px;
@@ -31,4 +31,4 @@
   button:hover {
     background-color: #005bb5;
   }
-  </style>
+</style>
