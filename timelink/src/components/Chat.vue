@@ -134,7 +134,12 @@ export default {
       this.newMessage = '';
       this.loadConversation();
     },
-    startPenalty(friendId) {
+    async startPenalty(friendId) {
+      await axios.post(`${this.serverUrl}/api/duels/start`, {
+        player1_id: this.user.id,
+        player2_id: friendId
+      });
+
       this.currentFriendId = friendId;
       this.page = 'penalty';
     }
