@@ -2,7 +2,7 @@
   <div class="chat-container">
     <div v-if="page === 'chat'">
       <h2>Bienvenue {{ user.username }}</h2>
-      <button @click="$emit('go-friends')"> Ajouter des amis</button>
+      <button @click="$emit('go-friends')">Ajouter des amis</button>
 
       <h3>Mes amis</h3>
       <ul>
@@ -72,13 +72,15 @@ export default {
 
     async startConversationWith(username) {
       this.receiverUsername = username;
-      await this.loadConversation(); // ← après correction
+      await this.loadConversation();
+      this.startPollingMessages();
     },
 
     async loadConversation() {
+      if (!this.receiverUsername) return;
+
       const res = await axios.get(`${this.serverUrl}/api/users/by-username/${this.receiverUsername}`);
-      const data = res.data;
-      this.receiverId = data.id;
+      this.receiverId = res.data.id;
 
       const messagesRes = await axios.get(`${this.serverUrl}/api/messages/between/${this.user.id}/${this.receiverId}`);
       this.messages = messagesRes.data;
@@ -101,18 +103,31 @@ export default {
       this.loadConversation();
     },
 
+    startPollingMessages() {
+      if (this.polling) clearInterval(this.polling);
+
+      this.polling = setInterval(async () => {
+        if (this.receiverId) {
+          await this.loadConversation();
+        }
+      }, 2000);
+    },
+
     async startPenalty(friendId) {
       await axios.post(`${this.serverUrl}/api/duels/start`, {
         player1_id: this.user.id,
         player2_id: friendId
       });
+      if (this.polling) clearInterval(this.polling); // stop chat polling
       this.currentFriendId = friendId;
       this.page = 'penalty';
     }
-}
+  },
+  beforeUnmount() {
+    if (this.polling) clearInterval(this.polling);
+  }
 };
 </script>
-
 
 <style scoped>
 .chat-box {
