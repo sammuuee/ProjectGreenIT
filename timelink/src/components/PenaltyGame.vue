@@ -1,79 +1,75 @@
 <template>
     <div class="penalty-container">
       <h1>Penalty Game ⚽</h1>
-      <p v-if="!result">Choisis un côté :</p>
-  
-      <div v-if="!hasChosen">
-        <button @click="makeChoice('left')">Gauche</button>
-        <button @click="makeChoice('center')">Centre</button>
-        <button @click="makeChoice('right')">Droite</button>
+      <div v-if="!choiceMade">
+        <p>Choisis un côté :</p>
+        <button @click="makeChoice('gauche')">Gauche</button>
+        <button @click="makeChoice('centre')">Centre</button>
+        <button @click="makeChoice('droite')">Droite</button>
       </div>
   
-      <p v-if="hasChosen && !result">En attente de l'autre joueur...</p>
+      <div v-else-if="!result">
+        <p>En attente de l'autre joueur...</p>
+      </div>
   
-      <div v-if="result">
-        <h2>{{ result }}</h2>
+      <div v-else>
+        <h2>{{ result.result }}</h2>
         <button @click="$emit('back')">Retour au Chat</button>
       </div>
     </div>
-</template>
+  </template>
   
-<script>
+  <script>
   import axios from 'axios';
   
   export default {
     props: ['user', 'friendId', 'serverUrl'],
     data() {
       return {
-        hasChosen: false,
+        role: '',
+        choiceMade: false,
         result: null,
-        polling: null
+        polling: null,
       };
     },
+    mounted() {
+      this.role = Math.random() > 0.5 ? 'tireur' : 'gardien'; // tireur ou gardien aléatoirement
+    },
     methods: {
-      async makeChoice(direction) {
-        try {
-          // Déterminer le rôle au hasard
-          const role = Math.random() > 0.5 ? 'tireur' : 'gardien';
+      async makeChoice(side) {
+        this.choiceMade = true;
   
-          await axios.post(`${this.serverUrl}/api/duels/choose`, {
+        await axios.post(`${this.serverUrl}/api/duels/choose`, {
+          userId: this.user.id,
+          role: this.role,
+          choice: side
+        });
+  
+        this.startPollingResult();
+      },
+      startPollingResult() {
+        this.polling = setInterval(async () => {
+          const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
             userId: this.user.id,
-            role,
-            choice: direction
+            role: 'check'
           });
   
-          this.hasChosen = true;
-          this.pollForResult();
-        } catch (err) {
-          console.error('Erreur en envoyant le choix', err);
-        }
-      },
-      pollForResult() {
-        this.polling = setInterval(async () => {
-          try {
-            const res = await axios.post(`${this.serverUrl}/api/duels/choose`, {
-              userId: this.user.id,
-              role: 'check',
-              choice: 'none'
-            });
-  
-            if (res.data.result) {
-              this.result = res.data.result;
-              clearInterval(this.polling);
-            }
-          } catch (err) {
-            console.error('Erreur en polling du resultat', err);
+          if (res.data.result) {
+            this.result = res.data;
+            clearInterval(this.polling);
           }
-        }, 2000);
+        }, 1000); // Toutes les secondes
       }
     },
     beforeUnmount() {
-      clearInterval(this.polling);
+      if (this.polling) {
+        clearInterval(this.polling);
+      }
     }
   };
-</script>
+  </script>
   
-<style>
+  <style>
   .penalty-container {
     text-align: center;
     margin-top: 50px;
@@ -92,5 +88,5 @@
   button:hover {
     background-color: #005bb5;
   }
-</style>
+  </style>
   
